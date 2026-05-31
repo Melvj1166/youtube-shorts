@@ -174,6 +174,83 @@ def run_pipeline(url: str, config: Settings) -> Path:
     return export_out.output_dir
 
 
+def run_pipeline_dry(url: str, config: Settings) -> None:
+    """Run stages 1–6 only (no video encoding). Prints scored segment table."""
+    from podshorts.stages import (
+        s01_download,
+        s02_heatmap,
+        s03_transcribe,
+        s04_segment,
+        s05_score,
+        s06_rank,
+    )
+
+    logger = get_logger("podshorts.pipeline.dry", config.log_level)
+    config.ensure_dirs()
+
+    tmp_ctx = Context(
+        video_id="__unknown__",
+        cache_dir=config.cache_dir,
+        config=config,
+        logger=logger,
+        graphify=None,
+    )
+
+    logger.info("Stage 1: Downloading %s", url)
+    dl_output = s01_download.run(DownloadInput(url=url), tmp_ctx)
+    video_id = dl_output.metadata.video_id
+    ctx = build_context(video_id, config, logger)
+
+    logger.info("Stage 2: Fetching engagement heatmap")
+    hm_output = s02_heatmap.run(HeatmapInput(video_id=video_id), ctx)
+
+    logger.info("Stage 3: Transcribing audio")
+    tr_output = s03_transcribe.run(TranscribeInput(audio_path=dl_output.audio_path), ctx)
+
+    logger.info("Stage 4: Building candidate segments")
+    seg_output = s04_segment.run(
+        SegmentInput(
+            words=tr_output.words,
+            heatmap=hm_output.markers,
+            duration=dl_output.metadata.duration_seconds,
+        ),
+        ctx,
+    )
+
+    logger.info("Stage 5: Scoring %d candidates", len(seg_output.candidates))
+    score_output = s05_score.run(ScoreInput(candidates=seg_output.candidates), ctx)
+
+    logger.info("Stage 6: Ranking segments")
+    rank_output = s06_rank.run(
+        RankInput(scored=score_output.scored, top_n=config.top_n_shorts), ctx
+    )
+
+    from rich.console import Console
+    from rich.table import Table
+
+    console = Console()
+    table = Table(title=f"Top segments for {video_id} (dry run)")
+    table.add_column("#", style="cyan")
+    table.add_column("Start", style="green")
+    table.add_column("End", style="green")
+    table.add_column("LLM", style="yellow")
+    table.add_column("Heatmap", style="magenta")
+    table.add_column("Final", style="bold white")
+    table.add_column("Reason")
+
+    for i, s in enumerate(rank_output.selected, 1):
+        table.add_row(
+            str(i),
+            f"{s.segment.start:.1f}s",
+            f"{s.segment.end:.1f}s",
+            f"{s.llm_score:.2f}",
+            f"{s.segment.mean_heatmap_intensity:.2f}",
+            f"{s.final_score:.2f}",
+            s.reason[:60],
+        )
+    console.print(table)
+
+
 def inspect_pipeline(video_id: str, config: Settings) -> None:
     """Run stages 2-6 (no video encoding) and print segment scores."""
     from podshorts.stages import (

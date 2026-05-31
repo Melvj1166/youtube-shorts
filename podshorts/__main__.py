@@ -32,10 +32,11 @@ def run(
     youtube_url: Annotated[str, typer.Argument(help="YouTube podcast URL")],
     top_n: Annotated[int, typer.Option("--top-n", help="Number of shorts to produce")] = 5,
     force: Annotated[bool, typer.Option("--force", help="Force re-run all stages")] = False,
+    dry_run: Annotated[bool, typer.Option("--dry-run", help="Score segments only; skip video encoding")] = False,
     config: Annotated[Optional[Path], typer.Option("--config", help="Path to .env file")] = None,
 ) -> None:
     """Download a podcast and produce vertical short videos."""
-    from podshorts.pipeline import run_pipeline
+    from podshorts.pipeline import run_pipeline, run_pipeline_dry
     from podshorts.utils.logging import configure_root_logger
 
     settings = _load_settings(config)
@@ -44,8 +45,12 @@ def run(
     configure_root_logger(settings.log_level)
 
     try:
-        output_dir = run_pipeline(youtube_url, settings)
-        console.print(f"[green]Done.[/green] Shorts written to {output_dir}")
+        if dry_run:
+            run_pipeline_dry(youtube_url, settings)
+            console.print("[green]Dry run complete.[/green] No video files written.")
+        else:
+            output_dir = run_pipeline(youtube_url, settings)
+            console.print(f"[green]Done.[/green] Shorts written to {output_dir}")
     except NotImplementedError as exc:
         err_console.print(f"[yellow]Not yet implemented:[/yellow] {exc}")
         raise typer.Exit(code=2) from None
