@@ -7,7 +7,7 @@ import subprocess
 from pathlib import Path
 
 from podshorts.types import Context, CropInput, CropOutput
-from podshorts.utils.ffmpeg import run_ffmpeg
+from podshorts.utils.ffmpeg import run_ffmpeg, ffmpeg_bin
 
 
 def run(input: CropInput, ctx: Context) -> CropOutput:
@@ -24,9 +24,10 @@ def run(input: CropInput, ctx: Context) -> CropOutput:
     tmp_dir.mkdir(parents=True, exist_ok=True)
 
     # Get source dimensions and frame rate via ffprobe
+    ffprobe = ffmpeg_bin().replace("ffmpeg", "ffprobe")
     probe_result = subprocess.run(
         [
-            "ffprobe", "-v", "error",
+            ffprobe, "-v", "error",
             "-select_streams", "v:0",
             "-show_entries", "stream=width,height,r_frame_rate",
             "-of", "json",

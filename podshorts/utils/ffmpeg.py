@@ -30,6 +30,11 @@ def has_videotoolbox() -> bool:
 def _ffmpeg_bin() -> str:
     for candidate in ("/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg"):
         if Path(candidate).exists():
+            import os
+            parent = str(Path(candidate).parent)
+            path_parts = os.environ.get("PATH", "").split(os.pathsep)
+            if parent not in path_parts:
+                os.environ["PATH"] = parent + os.pathsep + os.environ.get("PATH", "")
             return candidate
     found = shutil.which("ffmpeg")
     if found:

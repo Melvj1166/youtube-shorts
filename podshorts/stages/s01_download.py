@@ -6,34 +6,71 @@ import yt_dlp
 
 from podshorts.exceptions import DownloadError, StageError
 from podshorts.types import Context, DownloadInput, DownloadOutput, VideoMetadata
-from podshorts.utils.ffmpeg import extract_audio
+from podshorts.utils.ffmpeg import extract_audio, ffmpeg_bin
 
 
 def run(input: DownloadInput, ctx: Context) -> DownloadOutput:
     logger = ctx.logger
 
-    # --- extract info first (no download) to get video_id for cache check ---
+    # Check if input.url is a local file path
+    local_path = Path(input.url)
+    is_local = False
     try:
-        info = _extract_info(input.url)
-    except yt_dlp.utils.DownloadError as exc:
-        msg = str(exc).lower()
-        if any(k in msg for k in ("private", "age", "region", "unavailable", "not available")):
-            raise DownloadError(input.url, str(exc)) from exc
-        raise StageError("download", str(exc), exc) from exc
+        if local_path.exists() and local_path.is_file():
+            is_local = True
+    except Exception:
+        pass
 
-    video_id: str = info["id"]
-    video_dir = ctx.cache_dir / video_id
-    video_dir.mkdir(parents=True, exist_ok=True)
-
-    video_path = video_dir / "video.mp4"
-    audio_path = video_dir / "audio.wav"
-
-    # --- download video if not cached ---
-    if video_path.exists() and not ctx.config.force_rerun:
-        logger.info("Cache hit: %s (video)", video_id)
+    if is_local:
+        import shutil
+        from podshorts.utils.ffmpeg import probe_duration
+        
+        video_id = local_path.stem
+        video_id = "".join(c for c in video_id if c.isalnum() or c in ("-", "_")) or "uploaded_video"
+        
+        video_dir = ctx.cache_dir / video_id
+        video_dir.mkdir(parents=True, exist_ok=True)
+        video_path = video_dir / "video.mp4"
+        audio_path = video_dir / "audio.wav"
+        
+        if not video_path.exists() or ctx.config.force_rerun:
+            logger.info("Copying local video %s to cache", local_path.name)
+            shutil.copy2(local_path, video_path)
+            
+        duration = probe_duration(video_path)
+        info = {
+            "id": video_id,
+            "title": local_path.stem,
+            "duration": duration,
+            "uploader": "Local Upload",
+            "view_count": 0,
+            "upload_date": "",
+            "description": "Local video upload",
+            "chapters": [],
+        }
     else:
-        logger.info("Downloading video %s", video_id)
-        _download_video(input.url, video_path)
+        # --- extract info first (no download) to get video_id for cache check ---
+        try:
+            info = _extract_info(input.url)
+        except yt_dlp.utils.DownloadError as exc:
+            msg = str(exc).lower()
+            if any(k in msg for k in ("private", "age", "region", "unavailable", "not available")):
+                raise DownloadError(input.url, str(exc)) from exc
+            raise StageError("download", str(exc), exc) from exc
+
+        video_id = info["id"]
+        video_dir = ctx.cache_dir / video_id
+        video_dir.mkdir(parents=True, exist_ok=True)
+
+        video_path = video_dir / "video.mp4"
+        audio_path = video_dir / "audio.wav"
+
+        # --- download video if not cached ---
+        if video_path.exists() and not ctx.config.force_rerun:
+            logger.info("Cache hit: %s (video)", video_id)
+        else:
+            logger.info("Downloading video %s", video_id)
+            _download_video(input.url, video_path)
 
     # --- extract audio if not cached ---
     if audio_path.exists() and not ctx.config.force_rerun:
@@ -78,6 +115,7 @@ def _download_video(url: str, output_path: Path) -> None:
         "quiet": True,
         "no_warnings": True,
         "merge_output_format": "mp4",
+        "ffmpeg_location": ffmpeg_bin(),
         # Overwrite if force_rerun already removed the file
         "overwrites": True,
     }

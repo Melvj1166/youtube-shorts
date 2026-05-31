@@ -238,6 +238,32 @@ def doctor(
         raise typer.Exit(code=1)
 
 
+@app.command()
+def web(
+    host: Annotated[str, typer.Option("--host", help="Host to bind the server to")] = "127.0.0.1",
+    port: Annotated[int, typer.Option("--port", help="Port to bind the server to")] = 8000,
+    config: Annotated[Optional[Path], typer.Option("--config", help="Path to .env file")] = None,
+) -> None:
+    """Launch the local web user interface."""
+    import uvicorn
+    import webbrowser
+    from podshorts.web.server import create_app
+
+    settings = _load_settings(config)
+    app_instance = create_app(settings)
+
+    url = f"http://{host}:{port}"
+    console.print(f"\n[bold green]Launching PodShorts Web UI...[/bold green]")
+    console.print(f"Server is running at: [link={url}]{url}[/link]\n")
+
+    try:
+        webbrowser.open(url)
+    except Exception:
+        pass
+
+    uvicorn.run(app_instance, host=host, port=port, log_level="warning")
+
+
 def main() -> None:
     app()
 

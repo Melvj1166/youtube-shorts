@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PodShorts Studio — AI Podcast to Shorts</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+  <!-- Layout Wrapper -->
+  <div class="app-container">
+
+    <!-- History Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <span class="logo-icon">⚡</span>
+          <h2>PodShorts</h2>
+        </div>
+        <p class="tagline">Podcast to Shorts Pipeline</p>
+      </div>
+
+      <div class="history-section">
+        <h3 class="section-title">Past Runs</h3>
+        <div class="history-list" id="historyList">
+          <div class="empty-state">No previous runs found.</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      
+      <!-- Input Panel -->
+      <section class="panel glass input-panel">
+        <div class="panel-header">
+          <h1>Create Shorts</h1>
+          <p>Transform any YouTube podcast or local video into viral 9:16 shorts.</p>
+        </div>
+
+        <div class="input-toggle-container">
+          <button class="toggle-btn active" id="toggleUrl">YouTube URL</button>
+          <button class="toggle-btn" id="toggleUpload">Local Video Upload</button>
+        </div>
+
+        <form id="pipelineForm" class="form-container">
+          
+          <!-- YouTube URL Input -->
+          <div class="input-group" id="urlInputGroup">
+            <label for="youtubeUrl">YouTube Video URL</label>
+            <div class="url-input-wrapper">
+              <span class="input-icon">🔗</span>
+              <input type="url" id="youtubeUrl" placeholder="https://www.youtube.com/watch?v=..." required autocomplete="off">
+            </div>
+          </div>
+
+          <!-- File Upload Input -->
+          <div class="input-group hidden" id="uploadInputGroup">
+            <label>Upload Video File</label>
+            <div class="drag-drop-zone" id="dropZone">
+              <span class="upload-icon">📤</span>
+              <p class="upload-text">Drag & drop your video here, or <span class="browse-link">browse</span></p>
+              <p class="upload-subtext">Supports MP4, MOV, MKV, AVI (Max 500MB)</p>
+              <input type="file" id="videoFileInput" accept="video/mp4,video/quicktime,video/x-matroska,video/x-msvideo" class="hidden">
+              <div class="selected-file-info hidden" id="fileInfo">
+                <span class="file-name" id="fileName">video.mp4</span>
+                <button type="button" class="remove-file-btn" id="removeFileBtn">✕</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Configuration Grid -->
+          <div class="config-grid">
+            <div class="config-item">
+              <label for="topN">Shorts to Produce</label>
+              <select id="topN">
+                <option value="1">1 Short</option>
+                <option value="3">3 Shorts</option>
+                <option value="5" selected>5 Shorts</option>
+                <option value="7">7 Shorts</option>
+              </select>
+            </div>
+            
+            <div class="config-item checkbox-item">
+              <label class="checkbox-label">
+                <input type="checkbox" id="forceRerun">
+                <span class="custom-checkbox"></span>
+                <span>Ignore Cache (Force run)</span>
+              </label>
+            </div>
+          </div>
+
+          <button type="submit" class="submit-btn" id="submitBtn">
+            <span class="btn-text">Generate Shorts</span>
+            <span class="btn-spinner hidden"></span>
+          </button>
+        </form>
+      </section>
+
+      <!-- Active Job Progress Panel -->
+      <section class="panel glass progress-panel hidden" id="progressPanel">
+        <div class="panel-header progress-header">
+          <div>
+            <h2 id="jobTitle">Processing Podcast</h2>
+            <p id="jobSub">Running AI pipeline stages...</p>
+          </div>
+          <div class="overall-progress-container">
+            <div class="progress-ring-wrapper">
+              <svg class="progress-ring" width="60" height="60">
+                <circle class="progress-ring__circle-bg" stroke="#1d2027" stroke-width="4" fill="transparent" r="24" cx="30" cy="30"/>
+                <circle class="progress-ring__circle" stroke="url(#progressGradient)" stroke-width="4" fill="transparent" r="24" cx="30" cy="30" stroke-dasharray="150.79" stroke-dashoffset="150.79"/>
+                <defs>
+                  <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#a855f7" />
+                    <stop offset="100%" stop-color="#6366f1" />
+                  </linearGradient>
+                </defs>
+              </svg>
+              <div class="progress-percentage" id="progressPercentage">0%</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pipeline Stages Stepper -->
+        <div class="stages-stepper">
+          <div class="step" id="step-downloading">
+            <div class="step-icon">1</div>
+            <div class="step-details">
+              <h4>Download / Copy</h4>
+              <p>Fetching best mp4 video stream</p>
+            </div>
+          </div>
+          <div class="step" id="step-heatmap">
+            <div class="step-icon">2</div>
+            <div class="step-details">
+              <h4>Heatmap Parse</h4>
+              <p>Identifying most-replayed peaks</p>
+            </div>
+          </div>
+          <div class="step" id="step-transcribing">
+            <div class="step-icon">3</div>
+            <div class="step-details">
+              <h4>Speech Transcription</h4>
+              <p>Whisper word-level timestamps</p>
+            </div>
+          </div>
+          <div class="step" id="step-segmenting">
+            <div class="step-icon">4</div>
+            <div class="step-details">
+              <h4>Segmentation</h4>
+              <p>Building candidate clips</p>
+            </div>
+          </div>
+          <div class="step" id="step-scoring">
+            <div class="step-icon">5</div>
+            <div class="step-details">
+              <h4>LLM Scoring & Rank</h4>
+              <p>Evaluating virality metrics</p>
+            </div>
+          </div>
+          <div class="step" id="step-face_tracking">
+            <div class="step-icon">6</div>
+            <div class="step-details">
+              <h4>Face Centroid Tracking</h4>
+              <p>MediaPipe voice-active tracking</p>
+            </div>
+          </div>
+          <div class="step" id="step-cropping">
+            <div class="step-icon">7</div>
+            <div class="step-details">
+              <h4>FFmpeg 9:16 Reframe</h4>
+              <p>Dynamic pans and centering</p>
+            </div>
+          </div>
+          <div class="step" id="step-subtitling">
+            <div class="step-icon">8</div>
+            <div class="step-details">
+              <h4>Karaoke Subtitles</h4>
+              <p>Burning in stylized yellow highlights</p>
+            </div>
+          </div>
+          <div class="step" id="step-exporting">
+            <div class="step-icon">9</div>
+            <div class="step-details">
+              <h4>Export & Metadata</h4>
+              <p>Final high-CRF encoding</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Real-time Console Log -->
+        <div class="console-log-wrapper">
+          <div class="console-header">
+            <span>Terminal Logs</span>
+            <button class="clear-log-btn" id="scrollLogBtn">Auto-scroll</button>
+          </div>
+          <div class="console-box" id="consoleBox">
+            <div class="log-line system">Initializing local environment...</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Results Display Panel -->
+      <section class="panel glass results-panel hidden" id="resultsPanel">
+        <div class="panel-header results-header-bar">
+          <div>
+            <h2 id="resultsTitle">Output Gallery</h2>
+            <p id="resultsSub">Select a short to preview captions and metrics.</p>
+          </div>
+          <button class="toggle-btn" id="backToInputBtn">Create More</button>
+        </div>
+
+        <div class="results-grid">
+          
+          <!-- Grid of Short Cards -->
+          <div class="shorts-grid" id="shortsGrid">
+            <!-- Dynamically populated -->
+          </div>
+
+          <!-- Detailed Sidebar for Selected Short -->
+          <div class="short-details-card" id="shortDetailsCard">
+            <!-- Dynamically populated details -->
+            <div class="details-empty-state">
+              <span>👈</span>
+              <p>Select a generated short card from the grid to view captions, virality scores, and sharing metadata.</p>
+            </div>
+          </div>
+
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Notification Toast -->
+  <div class="toast hidden" id="toast">Notification Message</div>
+
+  <!-- JS Entry -->
+  <script src="/static/app.js"></script>
+</body>
+</html>
