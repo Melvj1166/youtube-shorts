@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     # Paths
     cache_dir: Path = Path("./cache")
     output_dir: Path = Path("./output")
+    face_detector_model: Path = Path("./models/blaze_face_short_range.tflite")
 
     # Memory
     graphify_namespace: str = "podshorts"
