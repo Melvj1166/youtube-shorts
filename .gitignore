@@ -1,0 +1,37 @@
+# Cache and output (never commit these)
+cache/
+output/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# Virtual envs
+.venv/
+venv/
+env/
+
+# Env files
+.env
+!.env.example
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+
+# macOS
+.DS_Store
+
+# uv
+.python-version
+uv.lock
+
+# OMC plugin state
+.omc/
