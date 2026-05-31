@@ -22,6 +22,8 @@ dependencies = [
     "rich>=13.7",
     "ffmpeg-python>=0.2",
     "httpx>=0.27",
+    "Pillow>=10.0",
+    "opencv-python>=4.8",
 ]
 
 [project.optional-dependencies]
