@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import subprocess
-import sys
 from pathlib import Path
 from typing import Annotated, Optional
 
@@ -145,18 +144,19 @@ def doctor(
 
     # 1. FFmpeg + h264_videotoolbox
     try:
-        result = subprocess.run(
-            ["ffmpeg", "-version"], capture_output=True, text=True, check=False
-        )
+        from podshorts.utils.ffmpeg import ffmpeg_bin
+        ff = ffmpeg_bin()
+        result = subprocess.run([ff, "-version"], capture_output=True, text=True, check=False)
         ffmpeg_ok = result.returncode == 0
-    except FileNotFoundError:
+    except Exception:
+        ff = "ffmpeg"
         ffmpeg_ok = False
 
     check("ffmpeg", ffmpeg_ok, "not found — brew install ffmpeg" if not ffmpeg_ok else "")
 
     if ffmpeg_ok:
         vt_result = subprocess.run(
-            ["ffmpeg", "-hide_banner", "-encoders"],
+            [ff, "-hide_banner", "-encoders"],
             capture_output=True, text=True, check=False,
         )
         vt_ok = "h264_videotoolbox" in vt_result.stdout
@@ -216,6 +216,14 @@ def doctor(
         check("yt-dlp", True)
     except ImportError:
         check("yt-dlp", False, "pip install yt-dlp")
+
+    # 8. BlazeFace tflite model
+    model_path = settings.face_detector_model
+    check(
+        "blaze_face_short_range.tflite",
+        model_path.exists(),
+        "" if model_path.exists() else f"missing at {model_path}",
+    )
 
     console.print()
     if all_ok:
