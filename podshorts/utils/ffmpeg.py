@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 import subprocess
 from pathlib import Path
 from typing import Sequence
@@ -12,18 +13,13 @@ logger = get_logger(__name__)
 
 def require_ffmpeg() -> str:
     """Return the ffmpeg binary path, raising DependencyMissingError if absent."""
-    result = subprocess.run(
-        ["which", "ffmpeg"], capture_output=True, text=True, check=False
-    )
-    if result.returncode != 0:
-        raise DependencyMissingError("ffmpeg", "brew install ffmpeg")
-    return result.stdout.strip()
+    return _ffmpeg_bin()
 
 
 def has_videotoolbox() -> bool:
     """Return True if ffmpeg supports h264_videotoolbox (Apple Silicon HW encoder)."""
     result = subprocess.run(
-        ["ffmpeg", "-hide_banner", "-encoders"],
+        [_ffmpeg_bin(), "-hide_banner", "-encoders"],
         capture_output=True,
         text=True,
         check=False,
@@ -31,9 +27,22 @@ def has_videotoolbox() -> bool:
     return "h264_videotoolbox" in result.stdout
 
 
+def _ffmpeg_bin() -> str:
+    for candidate in ("/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg"):
+        if Path(candidate).exists():
+            return candidate
+    found = shutil.which("ffmpeg")
+    if found:
+        return found
+    raise DependencyMissingError("ffmpeg", "brew install ffmpeg")
+
+
+ffmpeg_bin = _ffmpeg_bin
+
+
 def run_ffmpeg(args: Sequence[str], description: str = "ffmpeg") -> None:
     """Run ffmpeg with explicit error capture. Raises FFmpegError on non-zero exit."""
-    cmd = ["ffmpeg", "-hide_banner", "-loglevel", "error", *args]
+    cmd = [_ffmpeg_bin(), "-hide_banner", "-loglevel", "error", *args]
     logger.debug("Running %s: %s", description, " ".join(cmd))
 
     with subprocess.Popen(
@@ -51,9 +60,10 @@ def run_ffmpeg(args: Sequence[str], description: str = "ffmpeg") -> None:
 
 def probe_duration(video_path: Path) -> float:
     """Return video duration in seconds via ffprobe."""
+    ffprobe = _ffmpeg_bin().replace("ffmpeg", "ffprobe")
     result = subprocess.run(
         [
-            "ffprobe",
+            ffprobe,
             "-v", "error",
             "-show_entries", "format=duration",
             "-of", "default=noprint_wrappers=1:nokey=1",
@@ -65,7 +75,7 @@ def probe_duration(video_path: Path) -> float:
     )
     if result.returncode != 0:
         raise FFmpegError(
-            ["ffprobe", str(video_path)],
+            [ffprobe, str(video_path)],
             result.returncode,
             result.stderr,
         )

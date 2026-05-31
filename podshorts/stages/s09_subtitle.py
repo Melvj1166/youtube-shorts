@@ -9,7 +9,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 from podshorts.types import Context, SubtitleInput, SubtitleOutput, Word
-from podshorts.utils.ffmpeg import extract_segment_audio, run_ffmpeg
+from podshorts.utils.ffmpeg import extract_segment_audio, ffmpeg_bin, run_ffmpeg
 
 _WORDS_PER_LINE = 3
 _FONT_SIZE = 72
@@ -201,7 +201,7 @@ def _burn_subtitles(
 
     # Pipe raw frames into ffmpeg for encoding
     cmd = [
-        "ffmpeg", "-hide_banner", "-loglevel", "error",
+        ffmpeg_bin(), "-hide_banner", "-loglevel", "error",
         "-f", "rawvideo", "-vcodec", "rawvideo",
         "-s", f"{w}x{h}", "-pix_fmt", "bgr24",
         "-r", str(fps),
